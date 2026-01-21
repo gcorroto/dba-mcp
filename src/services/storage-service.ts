@@ -1,0 +1,99 @@
+import Database from 'better-sqlite3';
+import path from 'path';
+import fs from 'fs';
+
+export interface StoredConnection {
+    id: string;
+    vendor: string;
+    connectionString: string;
+}
+
+export class StorageService {
+    private db: Database.Database;
+
+    constructor(dataDir?: string) {
+        const dir = dataDir || process.cwd();
+        // Ensure directory exists
+        if (!fs.existsSync(dir)) {
+             // For safety, we only create the .mcp folder if explicitly needed, 
+             // but here we likely just want a file in root or a specific folder.
+             // Let's assume root is safe, or create a .dba-mcp folder.
+        }
+        
+        // Let's put it in a hidden folder to be clean
+        const storageDir = path.join(dir, '.dba-mcp');
+        if (!fs.existsSync(storageDir)) {
+            fs.mkdirSync(storageDir, { recursive: true });
+        }
+
+        this.db = new Database(path.join(storageDir, 'storage.db'));
+        this.init();
+    }
+
+    private init() {
+        // Table for Connection Configs
+        this.db.exec(`
+            CREATE TABLE IF NOT EXISTS connections (
+                id TEXT PRIMARY KEY,
+                vendor TEXT NOT NULL,
+                connection_string TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Table for Database Contexts (Markdown)
+        this.db.exec(`
+            CREATE TABLE IF NOT EXISTS contexts (
+                connection_id TEXT PRIMARY KEY,
+                content TEXT NOT NULL,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+    }
+
+    // --- Connections ---
+
+    saveConnection(conn: StoredConnection) {
+        const stmt = this.db.prepare(`
+            INSERT OR REPLACE INTO connections (id, vendor, connection_string)
+            VALUES (?, ?, ?)
+        `);
+        stmt.run(conn.id, conn.vendor, conn.connectionString);
+    }
+
+    getConnections(): StoredConnection[] {
+        const stmt = this.db.prepare('SELECT id, vendor, connectionString as connectionString FROM connections');
+        const rows = stmt.all() as any[];
+        // Map back if column aliases don't match automatically (better-sqlite3 returns objects with col names)
+        // Here I aliased connection_string as connectionString in SQL, but let's be explicit
+        return this.db.prepare('SELECT id, vendor, connection_string FROM connections').all().map((row: any) => ({
+            id: row.id,
+            vendor: row.vendor,
+            connectionString: row.connection_string
+        }));
+    }
+
+    removeConnection(id: string) {
+        this.db.prepare('DELETE FROM connections WHERE id = ?').run(id);
+    }
+
+    // --- Contexts ---
+
+    saveContext(connectionId: string, content: string) {
+        const stmt = this.db.prepare(`
+            INSERT OR REPLACE INTO contexts (connection_id, content, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+        `);
+        stmt.run(connectionId, content);
+    }
+
+    getContext(connectionId: string): string | null {
+        const row = this.db.prepare('SELECT content FROM contexts WHERE connection_id = ?').get(connectionId) as any;
+        return row ? row.content : null;
+    }
+
+    hasContext(connectionId: string): boolean {
+        const row = this.db.prepare('SELECT 1 FROM contexts WHERE connection_id = ?').get(connectionId);
+        return !!row;
+    }
+}

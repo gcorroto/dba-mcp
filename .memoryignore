@@ -1,0 +1,23 @@
+
+
+### VS Code ###
+.github/
+.history/
+.vscode/
+.terraform/
+.gradle/
+build/
+gradle/
+.gitignore
+docs/
+gradlew
+gradlew.bat
+HELP.md
+settings.gradle
+dist/
+out/
+images/
+media/
+resources/
+sql/
+package-lock.json
