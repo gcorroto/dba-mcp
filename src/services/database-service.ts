@@ -3,23 +3,32 @@ import { DatabaseConnection, QueryResult, TableInfo, ColumnInfo, HealthCheckResu
 export class DatabaseService {
   constructor(private connection: DatabaseConnection) {}
 
-  async executeQuery(sql: string, maxRows: number = 100): Promise<QueryResult> {
+  async executeQuery(sql: string, maxRows: number = 1000): Promise<QueryResult> {
     const startTime = Date.now();
     const { vendor, pool } = this.connection;
+
+    // Helper to append LIMIT safely
+    const sqlWithLimit = (query: string, limit: number): string => {
+        // If query already has a LIMIT clause, don't append another one to avoid syntax errors
+        // Simple heuristic: checks for "LIMIT <number>" case-insensitive
+        if (/LIMIT\s+\d+/i.test(query)) return query;
+        return `${query} LIMIT ${limit}`;
+    };
 
     try {
       switch (vendor) {
         case 'oracle':
+          // Oracle driver handles maxRows option gracefully
           return await this.executeOracleQuery(pool, sql, maxRows);
         case 'postgresql':
-          return await this.executePostgresQuery(pool, sql, maxRows);
+          return await this.executePostgresQuery(pool, sqlWithLimit(sql, maxRows));
         case 'mysql':
         case 'mariadb':
-          return await this.executeMySqlQuery(pool, sql, maxRows);
+          return await this.executeMySqlQuery(pool, sqlWithLimit(sql, maxRows));
         case 'sqlserver':
           return await this.executeSqlServerQuery(pool, sql, maxRows);
         case 'sqlite':
-          return await this.executeSqliteQuery(pool, sql, maxRows);
+          return await this.executeSqliteQuery(pool, sqlWithLimit(sql, maxRows));
         default:
           throw new Error(`Vendor no soportado: ${vendor}`);
       }
@@ -46,8 +55,8 @@ export class DatabaseService {
     }
   }
 
-  private async executePostgresQuery(pool: any, sql: string, maxRows: number): Promise<QueryResult> {
-    const result = await pool.query(`${sql} LIMIT ${maxRows}`);
+  private async executePostgresQuery(pool: any, sql: string): Promise<QueryResult> {
+    const result = await pool.query(sql);
     return {
       columns: result.fields.map((field: any) => field.name),
       rows: result.rows,
@@ -56,8 +65,8 @@ export class DatabaseService {
     };
   }
 
-  private async executeMySqlQuery(pool: any, sql: string, maxRows: number): Promise<QueryResult> {
-    const [rows, fields] = await pool.query(`${sql} LIMIT ${maxRows}`);
+  private async executeMySqlQuery(pool: any, sql: string): Promise<QueryResult> {
+    const [rows, fields] = await pool.query(sql);
     return {
       columns: fields.map((field: any) => field.name),
       rows: rows as any[],
@@ -101,9 +110,9 @@ export class DatabaseService {
     });
   }
 
-  private async executeSqliteQuery(pool: any, sql: string, maxRows: number): Promise<QueryResult> {
+  private async executeSqliteQuery(pool: any, sql: string): Promise<QueryResult> {
     // SQLite con better-sqlite3 es síncrono
-    const stmt = pool.prepare(`${sql} LIMIT ${maxRows}`);
+    const stmt = pool.prepare(sql);
     const rows = stmt.all();
     
     const columns = rows.length > 0 ? Object.keys(rows[0]) : [];

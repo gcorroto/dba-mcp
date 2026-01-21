@@ -3,22 +3,31 @@ export class DatabaseService {
     constructor(connection) {
         this.connection = connection;
     }
-    async executeQuery(sql, maxRows = 100) {
+    async executeQuery(sql, maxRows = 1000) {
         const startTime = Date.now();
         const { vendor, pool } = this.connection;
+        // Helper to append LIMIT safely
+        const sqlWithLimit = (query, limit) => {
+            // If query already has a LIMIT clause, don't append another one to avoid syntax errors
+            // Simple heuristic: checks for "LIMIT <number>" case-insensitive
+            if (/LIMIT\s+\d+/i.test(query))
+                return query;
+            return `${query} LIMIT ${limit}`;
+        };
         try {
             switch (vendor) {
                 case 'oracle':
+                    // Oracle driver handles maxRows option gracefully
                     return await this.executeOracleQuery(pool, sql, maxRows);
                 case 'postgresql':
-                    return await this.executePostgresQuery(pool, sql, maxRows);
+                    return await this.executePostgresQuery(pool, sqlWithLimit(sql, maxRows));
                 case 'mysql':
                 case 'mariadb':
-                    return await this.executeMySqlQuery(pool, sql, maxRows);
+                    return await this.executeMySqlQuery(pool, sqlWithLimit(sql, maxRows));
                 case 'sqlserver':
                     return await this.executeSqlServerQuery(pool, sql, maxRows);
                 case 'sqlite':
-                    return await this.executeSqliteQuery(pool, sql, maxRows);
+                    return await this.executeSqliteQuery(pool, sqlWithLimit(sql, maxRows));
                 default:
                     throw new Error(`Vendor no soportado: ${vendor}`);
             }
@@ -46,8 +55,8 @@ export class DatabaseService {
             await connection.close();
         }
     }
-    async executePostgresQuery(pool, sql, maxRows) {
-        const result = await pool.query(`${sql} LIMIT ${maxRows}`);
+    async executePostgresQuery(pool, sql) {
+        const result = await pool.query(sql);
         return {
             columns: result.fields.map((field) => field.name),
             rows: result.rows,
@@ -55,8 +64,8 @@ export class DatabaseService {
             executionTime: 0
         };
     }
-    async executeMySqlQuery(pool, sql, maxRows) {
-        const [rows, fields] = await pool.query(`${sql} LIMIT ${maxRows}`);
+    async executeMySqlQuery(pool, sql) {
+        const [rows, fields] = await pool.query(sql);
         return {
             columns: fields.map((field) => field.name),
             rows: rows,
@@ -94,9 +103,9 @@ export class DatabaseService {
             request.query(sql);
         });
     }
-    async executeSqliteQuery(pool, sql, maxRows) {
+    async executeSqliteQuery(pool, sql) {
         // SQLite con better-sqlite3 es síncrono
-        const stmt = pool.prepare(`${sql} LIMIT ${maxRows}`);
+        const stmt = pool.prepare(sql);
         const rows = stmt.all();
         const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
         return {
