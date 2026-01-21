@@ -62,15 +62,15 @@ export class StorageService {
     }
 
     getConnections(): StoredConnection[] {
-        const stmt = this.db.prepare('SELECT id, vendor, connectionString as connectionString FROM connections');
-        const rows = stmt.all() as any[];
-        // Map back if column aliases don't match automatically (better-sqlite3 returns objects with col names)
-        // Here I aliased connection_string as connectionString in SQL, but let's be explicit
         return this.db.prepare('SELECT id, vendor, connection_string FROM connections').all().map((row: any) => ({
             id: row.id,
             vendor: row.vendor,
             connectionString: row.connection_string
         }));
+    }
+
+    close() {
+        this.db.close();
     }
 
     removeConnection(id: string) {

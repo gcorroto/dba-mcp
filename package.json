@@ -1,6 +1,6 @@
 {
   "name": "@grec0/dba-mcp",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Multi-vendor Database MCP Server via Stdio for DevOps & Migration",
   "main": "build/index.js",
   "bin": {
@@ -21,10 +21,11 @@
     "version:patch": "npm version patch --no-git-tag-version",
     "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",
+    "test": "vitest run",
     "prerelease": "npm run build && npm test",
-    "release:patch": "npm run version:patch && npm run prerelease && npm publish --registry=https://registry.npmjs.org/",
-    "release:minor": "npm run version:minor && npm run prerelease && npm publish --registry=https://registry.npmjs.org/",
-    "release:major": "npm run version:major && npm run prerelease && npm publish --registry=https://registry.npmjs.org/",
+    "release:patch": "npm run version:patch && npm run prerelease && npm publish --registry=https://registry.npmjs.org/ --access public",
+    "release:minor": "npm run version:minor && npm run prerelease && npm publish --registry=https://registry.npmjs.org/ --access public",
+    "release:major": "npm run version:major && npm run prerelease && npm publish --registry=https://registry.npmjs.org/ --access public",
     "postpublish": "git add package.json && git commit -m \"chore: bump version to v$(node -p \"require('./package.json').version\")\" && git push"
   },
   "dependencies": {
@@ -43,6 +44,7 @@
     "@types/pg": "^8.11.2",
     "@types/tedious": "^4.0.13",
     "shx": "0.4.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "4.0.17"
   }
 }

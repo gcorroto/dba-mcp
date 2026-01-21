@@ -47,15 +47,14 @@ export class StorageService {
         stmt.run(conn.id, conn.vendor, conn.connectionString);
     }
     getConnections() {
-        const stmt = this.db.prepare('SELECT id, vendor, connectionString as connectionString FROM connections');
-        const rows = stmt.all();
-        // Map back if column aliases don't match automatically (better-sqlite3 returns objects with col names)
-        // Here I aliased connection_string as connectionString in SQL, but let's be explicit
         return this.db.prepare('SELECT id, vendor, connection_string FROM connections').all().map((row) => ({
             id: row.id,
             vendor: row.vendor,
             connectionString: row.connection_string
         }));
+    }
+    close() {
+        this.db.close();
     }
     removeConnection(id) {
         this.db.prepare('DELETE FROM connections WHERE id = ?').run(id);
