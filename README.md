@@ -1,34 +1,38 @@
 # DBA MCP Server 🚀
 
-**Multi-vendor Database Tool for DevOps & Migrations**
+**Multi-vendor Database Tool for DevOps, Migrations & Knowledge Management**
 
 `dba-mcp` is a Model Context Protocol (MCP) server designed to enable LLMs (like Claude, ChatGPT, or local models) to interact with, manage, and migrate SQL databases directly. It operates over `stdio`, making it ideal for integration with tools like Claude Desktop, Cursor, or any MCP client.
 
-It focuses on "Infrastructure as Code" and heavy-lifting tasks like schema comparison and bulk data migration, without requiring a graphical interface.
+It combines "Infrastructure as Code" principles with persistent knowledge management, allowing AI agents to save specific context about databases (Governance, Business Rules, Schema Explanations) and recall it on demand.
 
 ---
 
 ## 🌟 Features
 
 *   **Multi-Vendor Support**: Connect to Oracle, PostgreSQL, MySQL/MariaDB, SQL Server, and SQLite simultaneously.
-*   **Infrastructure-as-Code**: Configuration is injected via CLI arguments, keeping the server stateless and secure.
+*   **Hybrid Configuration**:
+    *   **Stateless**: Inject connections via CLI arguments (`--[id] [connection_string]`).
+    *   **Persistent**: Save connections permanently using the `save_connection` tool (stored in local SQLite).
+*   **Context & Knowledge Management** 🧠:
+    *   Save AI-generated context (Markdown) about a database (e.g., "This endpoint creates users based on table X").
+    *   Recall context automatically to answer complex questions about specific databases.
 *   **Schema Intelligence**:
-    *   Compare schemas between different engines (e.g., Oracle vs. Postgres).
+    *   Compare schemas between different engines.
     *   Generate DDL scripts (`CREATE`, `ALTER`) to synchronize structures.
 *   **Data Migration**:
     *   `migrate_data`: Move data between connections with optimized bulk inserts.
-    *   `replicate_database`: **Auto-Magic** cloning of an entire database (Schema + Data) from Source to Target.
-*   **DevOps Ready**: Docker support and standardized NPM scripts.
+    *   `replicate_database`: **Auto-Magic** cloning of an entire database (Schema + Data).
 
 ---
 
 ## 📦 Installation
 
 ### Via NPX (Recommended)
-You can run it directly without installing:
+You can run it directly without installing. Connections defined in CLI are loaded alongside any persistent connections saved previously.
 
 ```bash
-npx dba-mcp --local sqlite://data.db --prod postgres://user:pass@host/db
+npx @grec0/dba-mcp --local sqlite://data.db --prod postgres://user:pass@host/db
 ```
 
 ### Local Installation
@@ -41,40 +45,34 @@ npm run build
 
 ---
 
-## 🛠️ Configuration & Usage
+## 🛠️ Configuration & Persistence
 
-Connections are configured via command-line arguments. You define an ID for each connection and provide its connection string.
-
-**Format:** `--[id] [connection_string]`
-
-### Example Configuration (Claude Desktop)
-
-Add this to your `claude_desktop_config.json`:
+### 1. CLI Arguments (Ephemeral/Stateless)
+Ideal for CI/CD or temporary sessions.
+Format: `--[id] [connection_string]`
 
 ```json
+/* claude_desktop_config.json */
 {
   "mcpServers": {
     "dba-tools": {
       "command": "npx",
       "args": [
         "-y",
-        "dba-mcp",
-        "--dev", "sqlite://./dev.db",
-        "--staging", "mysql://root:pass@localhost:3306/staging_db",
-        "--prod", "postgres://admin:secure@prod-host:5432/main_db",
-        "--legacy", "oracle://system:manager@oracle-host:1521/XEPDB1"
+        "@grec0/dba-mcp",
+        "--staging", "mysql://root:pass@localhost:3306/staging_db"
       ]
     }
   }
 }
 ```
 
-### Supported Connection Strings
-- **SQLite**: `sqlite://path/to/file.db`
-- **PostgreSQL**: `postgres://user:pass@host:5432/db`
-- **MySQL**: `mysql://user:pass@host:3306/db`
-- **Oracle**: `oracle://user:pass@host:1521/service`
-- **SQL Server**: `sqlserver://user:pass@host:1433/db`
+### 2. Persistent Storage (Stateful)
+You can use tools to save connections. They are stored in an internal SQLite database (`.dba-mcp/storage.db`) within the running directory.
+
+*   **Save**: `save_connection`
+*   **Remove**: `remove_connection`
+*   **List**: `list_connections` (Shows source: 💾=Saved, 🖥️=CLI)
 
 ---
 
@@ -82,9 +80,18 @@ Add this to your `claude_desktop_config.json`:
 
 Once connected, the LLM will have access to these tools:
 
+### Connection & Context Management
 | Tool | Description |
 |------|-------------|
-| **`list_connections`** | Lists all configured database connections and their status. |
+| **`list_connections`** | Lists all active connections. Icons indicate status: <br>💾 Saved to Disk <br>🖥️ From CLI Args <br>📝 Context Available |
+| **`save_connection`** | Saves a new connection URL permanently. |
+| **`remove_connection`** | Removes a stored connection. |
+| **`save_database_context`** | Saves AI-generated markdown documentation for a specific connection (Governance, Business Logic). |
+| **`get_database_context`** | Retrieves the stored markdown context for a connection. |
+
+### Database Operations
+| Tool | Description |
+|------|-------------|
 | **`inspect_schema`** | Explore the database structure. Pass `tableName` to see columns/PKs, or empty to list all tables. |
 | **`sql_query`** | Execute a read-only SQL query on a specific connection. |
 | **`generate_migration_ddl`** | Compares two schemas (Source -> Target) and generates the SQL DDL commands to make Target match Source. |
@@ -93,7 +100,16 @@ Once connected, the LLM will have access to these tools:
 
 ---
 
-## 💻 Development
+## 🧠 Supported Connection Strings
+- **SQLite**: `sqlite://path/to/file.db`
+- **PostgreSQL**: `postgres://user:pass@host:5432/db`
+- **MySQL**: `mysql://user:pass@host:3306/db`
+- **Oracle**: `oracle://user:pass@host:1521/service`
+- **SQL Server**: `sqlserver://user:pass@host:1433/db`
+
+---
+
+## 💻 Development & Release
 
 ### Build
 ```bash
