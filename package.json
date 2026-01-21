@@ -1,6 +1,6 @@
 {
   "name": "@grec0/dba-mcp",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "Multi-vendor Database MCP Server via Stdio for DevOps & Migration",
   "main": "build/index.js",
   "bin": {
